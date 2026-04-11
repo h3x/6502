@@ -1,6 +1,7 @@
-.setcpu "65C02"
 
-.segment "WOZMON"
+  .org $8000
+  .org $ff00
+
 XAML  = $24                            ; Last "opened" location Low
 XAMH  = $25                            ; Last "opened" location High
 STL   = $26                            ; Store address Low
@@ -11,6 +12,11 @@ YSAV  = $2A                            ; Used to see if hex value is given
 MODE  = $2B                            ; $00=XAM, $7F=STOR, $AE=BLOCK XAM
 
 IN    = $0200                          ; Input buffer
+
+ACIA_DATA   = $5000
+ACIA_STATUS = $5001
+ACIA_CMD    = $5002
+ACIA_CTRL   = $5003
 
 RESET:
                 LDA     #$1F           ; 8-N-1, 19200 baud.
@@ -33,8 +39,6 @@ ESCAPE:
 
 GETLINE:
                 LDA     #$0D           ; Send CR
-                JSR     ECHO
-                LDA     #$0A           ; Send LF
                 JSR     ECHO
 
                 LDY     #$01           ; Initialize text index.
@@ -131,8 +135,6 @@ NXTPRNT:
                 BNE     PRDATA         ; NE means no address to print.
                 LDA     #$0D           ; CR.
                 JSR     ECHO           ; Output it.
-                LDA     #$0A           ; Send LF
-                JSR     ECHO
                 LDA     XAMH           ; 'Examine index' high-order byte.
                 JSR     PRBYTE         ; Output it in hex format.
                 LDA     XAML           ; Low-order 'examine index' byte.
@@ -185,3 +187,9 @@ TXDELAY:        DEC                    ; Decrement A.
                 BNE     TXDELAY        ; Until A gets to 0.
                 PLA                    ; Restore A.
                 RTS                    ; Return.
+
+  .org $FFFA
+
+                .word   $0F00          ; NMI vector
+                .word   RESET          ; RESET vector
+                .word   $0000          ; IRQ vector
