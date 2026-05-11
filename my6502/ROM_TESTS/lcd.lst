@@ -1,0 +1,127 @@
+ca65 V2.19 - Git a545b4fc3
+Main file   : lcd.s
+Current file: lcd.s
+
+000000r 1               .setcpu "65c02"
+000000r 1               ; VIA2 Port B bit definitions
+000000r 1               LCD_D4  = %00000001   ; VIA PB0 → LCD DB4
+000000r 1               LCD_D5  = %00000010   ; VIA PB1 → LCD DB5
+000000r 1               LCD_D6  = %00000100   ; VIA PB2 → LCD DB6
+000000r 1               LCD_D7  = %00001000   ; VIA PB3 → LCD DB7
+000000r 1               LCD_RS  = %00010000   ; VIA PB4 → LCD RS
+000000r 1               LCD_RW  = %00100000   ; VIA PB5 → LCD RW
+000000r 1               LCD_E   = %01000000   ; VIA PB6 → LCD E
+000000r 1               
+000000r 1               VIA_PORTB = $8000
+000000r 1               VIA_DDRB  = $8002
+000000r 1               
+000000r 1               .segment "CODE"
+000000r 1               reset:
+000000r 1  A2 00         ldx #$0
+000002r 1               
+000002r 1                ; VIA setup
+000002r 1  A9 FF         lda #%11111111       ; Set all pins on port B to output
+000004r 1  8D 02 80      sta VIA_DDRB
+000007r 1               
+000007r 1                ; LCD setup
+000007r 1  20 rr rr      jsr lcd_init
+00000Ar 1  A9 20         lda #%00100000       ; Set 4-bit mode
+00000Cr 1  20 rr rr      jsr lcd_instruction
+00000Fr 1  A9 0E         lda #%00001110       ; Display on; cursor on; blink off
+000011r 1  20 rr rr      jsr lcd_instruction
+000014r 1  A9 1C         lda #%00011100      ; Increment and shift cursor; don't shift display
+000016r 1  20 rr rr      jsr lcd_instruction
+000019r 1  A9 01         lda #%00000001       ; Clear display
+00001Br 1  20 rr rr      jsr lcd_instruction
+00001Er 1               
+00001Er 1               
+00001Er 1               send_message:
+00001Er 1  BD rr rr      lda message,x
+000021r 1  F0 07         beq done
+000023r 1  20 rr rr      jsr print_char
+000026r 1  E8            inx
+000027r 1  4C rr rr      jmp send_message
+00002Ar 1               
+00002Ar 1               
+00002Ar 1               done:
+00002Ar 1  4C rr rr      jmp done
+00002Dr 1               
+00002Dr 1  48 65 6C 6C  message: .asciiz "Hello, World!"
+000031r 1  6F 2C 20 57  
+000035r 1  6F 72 6C 64  
+00003Br 1               
+00003Br 1               lcd_init:
+00003Br 1  A9 02         lda #%00000010 ; Set 4-bit mode
+00003Dr 1  8D 00 80      sta VIA_PORTB
+000040r 1  09 40         ora #LCD_E
+000042r 1  8D 00 80      sta VIA_PORTB
+000045r 1  29 0F         and #%00001111
+000047r 1  8D 00 80      sta VIA_PORTB
+00004Ar 1  60            rts
+00004Br 1               
+00004Br 1               lcd_instruction:
+00004Br 1  20 rr rr      jsr lcd_wait
+00004Er 1  48            pha
+00004Fr 1  4A            lsr
+000050r 1  4A            lsr
+000051r 1  4A            lsr
+000052r 1  4A            lsr                 ; Send high 4 bits
+000053r 1  8D 00 80      sta VIA_PORTB
+000056r 1  09 40         ora #LCD_E         ; Set E bit to send instruction
+000058r 1  8D 00 80      sta VIA_PORTB
+00005Br 1  49 40         eor #LCD_E         ; Clear E bit
+00005Dr 1  8D 00 80      sta VIA_PORTB
+000060r 1  68            pla
+000061r 1  29 0F         and #%00001111     ; Send low 4 bits
+000063r 1  8D 00 80      sta VIA_PORTB
+000066r 1  09 40         ora #LCD_E         ; Set E bit to send instruction
+000068r 1  8D 00 80      sta VIA_PORTB
+00006Br 1  49 40         eor #LCD_E         ; Clear E bit
+00006Dr 1  8D 00 80      sta VIA_PORTB
+000070r 1  60            rts
+000071r 1               
+000071r 1               lcd_wait:
+000071r 1  48            pha
+000072r 1  5A            phy
+000073r 1  A0 FF         ldy #$ff
+000075r 1               delay_loop:
+000075r 1  88            dey
+000076r 1  D0 FD         bne delay_loop
+000078r 1  7A            ply
+000079r 1  68            pla
+00007Ar 1  60            rts
+00007Br 1               
+00007Br 1               print_char:
+00007Br 1  20 rr rr       jsr lcd_wait
+00007Er 1  48             pha
+00007Fr 1  4A             lsr
+000080r 1  4A             lsr
+000081r 1  4A             lsr
+000082r 1  4A             lsr             ; Send high 4 bits
+000083r 1  09 10          ora #LCD_RS         ; Set RS
+000085r 1  8D 00 80       sta VIA_PORTB
+000088r 1  09 40          ora #LCD_E          ; Set E bit to send instruction
+00008Ar 1  8D 00 80       sta VIA_PORTB
+00008Dr 1  49 40          eor #LCD_E          ; Clear E bit
+00008Fr 1  8D 00 80       sta VIA_PORTB
+000092r 1  68             pla
+000093r 1  29 0F          and #%00001111  ; Send low 4 bits
+000095r 1  09 10          ora #LCD_RS         ; Set RS
+000097r 1  8D 00 80       sta VIA_PORTB
+00009Ar 1  09 40          ora #LCD_E          ; Set E bit to send instruction
+00009Cr 1  8D 00 80       sta VIA_PORTB
+00009Fr 1  49 40          eor #LCD_E          ; Clear E bit
+0000A1r 1  8D 00 80       sta VIA_PORTB
+0000A4r 1  60             rts
+0000A5r 1               
+0000A5r 1               handle_nmi:
+0000A5r 1               handle_irq:
+0000A5r 1               exit_irq:
+0000A5r 1  40            rti
+0000A6r 1               
+0000A6r 1               .segment "VECTORS"
+000000r 1  rr rr         .word handle_nmi
+000002r 1  rr rr         .word reset
+000004r 1  rr rr         .word handle_irq
+000006r 1               
+000006r 1               
